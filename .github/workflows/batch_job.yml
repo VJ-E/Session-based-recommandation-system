@@ -1,0 +1,32 @@
+name: Daily Recommendation Batch Job
+
+on:
+  schedule:
+    # Run at 3:43 AM UTC every day.
+    # We choose an odd minute (43) to avoid the massive traffic spike on GitHub Actions
+    # that occurs exactly on the hour (e.g., 0 * * * *).
+    - cron: '43 3 * * *'
+  workflow_dispatch: # Allows you to manually trigger the job from the GitHub UI
+
+jobs:
+  run-batch-job:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip' # Speeds up execution by caching pip dependencies
+          
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+        
+      - name: Run SVD Matrix Factorization
+        env:
+          MONGODB_URI: ${{ secrets.MONGODB_URI }}
+          DB_NAME: test
+        run: python batch_job.py

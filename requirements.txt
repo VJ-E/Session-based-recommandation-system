@@ -4,3 +4,5 @@ python-dotenv
 pandas 
 scikit-learn 
 apscheduler
+gunicorn
+flask-cors
