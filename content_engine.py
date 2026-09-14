@@ -16,7 +16,7 @@ def initialize_content_engine():
     
     load_dotenv('.env.local')
     client = MongoClient(os.getenv('MONGODB_URI'))
-    db = client[os.getenv('DB_NAME', 'test')]
+    db = client[os.getenv('DB_NAME', 'ecommerce_db')]
     
     # Fetch products with text fields
     products_cursor = db.products.find({}, {"_id": 1, "name": 1, "category": 1, "brandName": 1, "features": 1})

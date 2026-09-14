@@ -12,7 +12,7 @@ CORS(app) # Enable Cross-Origin Resource Sharing for the Next.js frontend
 
 # Fetch MongoDB URI from environment variables
 MONGO_URI = os.getenv('MONGODB_URI')
-DB_NAME = os.getenv('DB_NAME', 'test')
+DB_NAME = os.getenv('DB_NAME', 'ecommerce_db')
 
 try:
     client = MongoClient(MONGO_URI)
@@ -63,6 +63,57 @@ def get_recommendations(user_id):
 
     return jsonify({
         "user_id": user_id,
+        "recommendations": final_recommendations
+    }), 200
+
+@app.route('/api/recommend/v2/<user_id>', methods=['GET'])
+def get_recommendations_v2(user_id):
+    """
+    V2 Recommendation Engine: Sequential (Markov Chain) + Hybrid Fallback
+    """
+    current_product_id = request.args.get('current_product_id')
+    final_recommendations = []
+    
+    # 1. Primary Engine: Sequential Markov Chain
+    if current_product_id:
+        print(f"[V2 Engine] Looking up Markov transitions for product: {current_product_id}")
+        markov_record = db.markov_transitions.find_one({"product_id": current_product_id})
+        
+        if markov_record and "transitions" in markov_record:
+            # Add top sequential transitions
+            for transition in markov_record["transitions"]:
+                final_recommendations.append(transition["next_product_id"])
+        else:
+            print(f"[V2 Engine] Cold Start: No Markov transitions found. Falling back to Content similarity.")
+            
+    # 2. Context Fallback: Content-Based Engine
+    # If Markov didn't find enough items (e.g., brand new item), use NLP similarity
+    if current_product_id and len(final_recommendations) < 4:
+        content_recs = get_content_recommendations(current_product_id, top_n=6)
+        for p_id in content_recs:
+            if p_id not in final_recommendations:
+                final_recommendations.append(p_id)
+                
+    # 3. Global History Fallback: SVD Collaborative Filtering
+    # Backfill the rest with the user's general static preferences
+    batch_record = db.precomputed_recs.find_one({"user_id": user_id})
+    if batch_record and "recommended_product_ids" in batch_record:
+        batch_recs = batch_record["recommended_product_ids"]
+        for p_id in batch_recs:
+            if p_id not in final_recommendations:
+                final_recommendations.append(p_id)
+                
+    # 4. Final Fallback: Popularity / Random
+    if not final_recommendations:
+        random_products = list(db.products.aggregate([{"$sample": {"size": 10}}]))
+        final_recommendations = [str(p['_id']) for p in random_products]
+
+    # Limit to top 10 overall
+    final_recommendations = final_recommendations[:10]
+
+    return jsonify({
+        "user_id": user_id,
+        "engine": "v2_markov_hybrid",
         "recommendations": final_recommendations
     }), 200
 
