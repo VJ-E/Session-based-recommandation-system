@@ -28,5 +28,5 @@ jobs:
       - name: Run SVD Matrix Factorization
         env:
           MONGODB_URI: ${{ secrets.MONGODB_URI }}
-          DB_NAME: test
+          DB_NAME: ${{ secrets.DB_NAME }}
         run: python batch_job.py
