@@ -3,6 +3,7 @@ import pandas as pd
 from pymongo import MongoClient
 from dotenv import load_dotenv
 from sklearn.decomposition import TruncatedSVD
+from markov_engine import run_markov_job
 
 def run_batch_job():
     print("Starting Batch Job for Collaborative Filtering...")
@@ -53,7 +54,8 @@ def run_batch_job():
             data.append({
                 "user_id": doc["_id"]["user_id"],
                 "product_id": doc["_id"]["product_id"],
-                "score": doc["score"]
+                # Clip max score to 5 just like we did in evaluator.py
+                "score": min(doc["score"], 5.0)
             })
             
     df = pd.DataFrame(data)
@@ -107,3 +109,4 @@ def run_batch_job():
 
 if __name__ == "__main__":
     run_batch_job()
+    run_markov_job()
